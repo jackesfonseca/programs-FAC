@@ -1,0 +1,111 @@
+# modificado
+
+.data
+	zero: 	.float 0.0
+	qline:	.asciiz	"\n"
+	tPosit:	.asciiz	"+\n"
+	tNegat:	.asciiz	"-\n"
+	iniMantissa: .asciiz "0x"
+	mantissa: .space 4
+.text
+	main:
+		lwc1 	$f1, zero	# Carrega o float que esta em zero para $f1
+		li	$v0, 6		# Chamada de sistema para read_float para o valor float
+		syscall			# Realiza a chamada ao sistema
+		
+		jal	printa_float
+		c.lt.s 	$f0,$f1		# Compara se o valor informado ($f1) Ã© menor ou igual a 0($f0) e muda o  coprocessor 1 condition flag 0
+		bc1t    sinal_negativo	# Se o valor no coprocessor 1 condition flag 0 for true(1) vÃ¡ para sinal_negativo
+		jal	sinal_positivo
+	else_sinal:
+		jal	printa_expb_s_bias
+		jal	printa_mantissa
+		j	exit
+		
+	exit:	
+		li	$v0, 10		# Chamada de sistema para saida
+		syscall 		# Finaliza execuÃ§Ã£o.
+	
+			
+#<---------------Printa nÃºmero que foi lido (um float em precisÃ£o simples)------------>	
+	printa_float:		
+		add.s 	$f12, $f1, $f0 	# Soma o valor lido com 0 e coloca em $f12 para ser impresso corretamente	
+		li 	$v0,2		# Chamada de sistema para print_float
+		syscall			# Imprime o float
+		
+		li 	$v0, 4		# Chamada de sistema para print_string
+		la  	$a0, qline	# EndereÃ§o da string "\n" para imprimir	
+		syscall			# Imprime a string
+		jr	 $ra		# Volta pra linha debaixo de onde foi chamada
+
+#<---------------Sinal negativo------------>
+	sinal_negativo:
+		li 	$v0, 4		# Chamada de sistema para print_string
+		la  	$a0, tNegat	# EndereÃ§o da string "-\n" para imprimir	
+		syscall			# Imprime a string
+		j	else_sinal	# volta para a linha com else_sinal
+		
+#<---------------Sinal positivo------------>	
+	sinal_positivo:
+		li 	$v0, 4		# Chamada de sistema para print_string
+		la  	$a0, tPosit	# EndereÃ§o da string "+\n" para imprimir	
+		syscall			# Imprime a string
+		jr	$ra		# Volta pra linha debaixo de onde foi chamada
+		
+#<---------------Printa expoente da base binaria sem bias------------>	
+	printa_expb_s_bias:
+		mfc1 	$t1,$f0		# Carrega o valor lido($f0) para $t1
+					# 0xxxxxxxx00000000000000000000000
+		sll	$t1,$t1,1	# Desloca 1 pra esquerda(sinal)
+		srl	$t1,$t1,24	# Desloca 24 posiÃ§oes pra direita(sinal+mantissa)
+		addi	$t3,$t1,-127	# Subtrai o BIAS
+		
+		la 	$a0, ($t3)	# Coloca o registrador $t2 para ser impresso
+		li 	$v0, 1		# Chamada de sistema para print_int
+		syscall			# Imprime o inteiro
+		
+		li 	$v0, 4		# Chamada de sistema para print_string
+		la  	$a0, qline	# EndereÃ§o da string "\n" para imprimir	
+		syscall			# Imprime a string
+		jr	$ra		# Volta pra linha debaixo de onde foi chamada
+		
+#<---------------Printa mantissa------------>		
+	printa_mantissa:	
+		li 	$v0,4		# Chamada de sistema para print_string
+		la 	$a0,iniMantissa	# Endereço da string "0x" para imprimir	
+		syscall			# Imprime a string
+	
+		mfc1 	$t3,$f0		# Carrega o valor lido($f0) para $t3
+					# 000000000xxxxxxxxxxxxxxxxxxxxxxx
+		sll	$t3,$t3,9	# Desloca 9 pra esquerda(sinal+expoente)
+		srl	$t3,$t3,9	# Desloca 9 posiçoes pra direita(sinal+expoente)
+		la 	$t8,($t3)	# Carrega #t3 em $t8
+		
+		la 	$t4,mantissa	# Carrega em $t4 o valor que esta no endereço da string "0x"
+		li 	$t5,8		# Carrega uma constante(8) em $t5 que é valor a ser decrementado no loop
+		j 	mantissa_L1	# Vá para mantissa_L1 que é um loop que converte bit a bit a mantissa para hexadecimal
+		
+	continua_print:	
+		li 	$v0,4		# Chamada de sistema para print_string
+		la 	$a0,mantissa	# Endereço da string mantissa convertida pra hexa para imprimir
+		syscall			# Imprime a string
+		
+		li 	$v0,4		# Chamada de sistema para print_string
+		la  	$a0,qline	# Endereço da string "\n" para imprimir	
+		syscall			# Imprime a string				
+		jr	$ra		# Volta pra linha debaixo de onde foi chamada
+		
+	mantissa_L1:
+		beqz 	$t5,continua_print# Se $t5=0 vá pra continua_print
+		rol 	$t3,$t3, 4	# Rotaciona para a esquerda a mantissa em $t3 4 vezes
+		andi 	$t6,$t3, 0xF	# Realiza $t3 and 0xF bit a bit e guarda em $t6
+		ble 	$t6, 9, numero	# Vá para numero hexa([0-9]) se $t6 for menor ou igual a 9
+		addi 	$t6,$t6, 55	# Senão é uma letra hexadecimal(A,B,C,D,E,F), por isso soma-se 55 ao $t6, porque indica a posição dele na tabela ascci
+		j	else_dig_hexa
+	numero:	
+		addi $t6,$t6,48	# É um número, então soma-se 48 ao $t6, porque indica a posição dele na tabela ascci(ex: t6=9+48=57 que é a posição do 9)
+	else_dig_hexa:
+		sb 	$t6,0($t4)	# Carrega os 8 bits menos significativos de $t6 em $t4 		
+		addi 	$t4,$t4,1	# Soma 1 a $t4
+		addi 	$t5,$t5,-1	# Soma -1 a $t5, decremento para a condição de parada
+		j 	mantissa_L1	# Recomeça o loop

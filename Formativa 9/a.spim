@@ -1,0 +1,82 @@
+.data
+	zero: 	.float 0.0
+	qline:	.asciiz	"\n"
+	tPosit:	.asciiz	"+\n"
+	tNegat:	.asciiz	"-\n"
+.text
+	main:
+		lwc1 	$f1, zero	# Carrega o float que esta em zero para $f1
+		li	$v0, 6		# Chamada de sistema para read_float para o valor float
+		syscall			# Realiza a chamada ao sistema
+		
+		jal	printa_float
+		c.lt.s 	$f0,$f1		# Compara se o valor informado ($f1) é menor ou igual a 0($f0) e muda o  coprocessor 1 condition flag 0
+		bc1t    sinal_negativo	# Se o valor no coprocessor 1 condition flag 0 for true(1) vá para sinal_negativo
+		jal	sinal_positivo
+	else_sinal:
+		jal	printa_expb_s_bias
+		jal	printa_mantissa
+		j	exit
+		
+	exit:	
+		li	$v0, 10		# Chamada de sistema para saida
+		syscall 		# Finaliza execução.
+	
+			
+#<---------------Printa número que foi lido (um float em precisão simples)------------>	
+	printa_float:		
+		add.s 	$f12, $f1, $f0 	# Soma o valor lido com 0 e coloca em $f12 para ser impresso corretamente	
+		li 	$v0,2		# Chamada de sistema para print_float
+		syscall			# Imprime o float
+		
+		li 	$v0, 4		# Chamada de sistema para print_string
+		la  	$a0, qline	# Endereço da string "\n" para imprimir	
+		syscall			# Imprime a string
+		jr	 $ra		# Volta pra linha debaixo de onde foi chamada
+
+#<---------------Sinal negativo------------>
+	sinal_negativo:
+		li 	$v0, 4		# Chamada de sistema para print_string
+		la  	$a0, tNegat	# Endereço da string "-\n" para imprimir	
+		syscall			# Imprime a string
+		j	else_sinal	# volta para a linha com else_sinal
+		
+#<---------------Sinal positivo------------>	
+	sinal_positivo:
+		li 	$v0, 4		# Chamada de sistema para print_string
+		la  	$a0, tPosit	# Endereço da string "+\n" para imprimir	
+		syscall			# Imprime a string
+		jr	$ra		# Volta pra linha debaixo de onde foi chamada
+		
+#<---------------Printa expoente da base binaria sem bias------------>	
+	printa_expb_s_bias:
+		mfc1 	$t1,$f0		# Carrega o valor lido($f0) para $t1
+					# 0xxxxxxxx00000000000000000000000
+		sll	$t1,$t1,1	# Desloca 1 pra esquerda(sinal)
+		srl	$t1,$t1,24	# Desloca 24 posiçoes pra direita(sinal+mantissa)
+		addi	$t3,$t1,-127	# Subtrai o BIAS
+		
+		la 	$a0, ($t3)	# Coloca o registrador $t2 para ser impresso
+		li 	$v0, 1		# Chamada de sistema para print_int
+		syscall			# Imprime o inteiro
+		
+		li 	$v0, 4		# Chamada de sistema para print_string
+		la  	$a0, qline	# Endereço da string "\n" para imprimir	
+		syscall			# Imprime a string
+		jr	$ra		# Volta pra linha debaixo de onde foi chamada
+		
+#<---------------Printa mantissa------------>		
+	printa_mantissa:	
+		mfc1 	$t2,$f0		# Carrega o valor lido($f0) para $t2
+					# 000000000xxxxxxxxxxxxxxxxxxxxxxx
+		sll	$t2,$t2,9	# Desloca 9 pra esquerda(sinal+expoente)
+		srl	$t2,$t2,9	# Desloca 9 posiçoes pra direita(sinal+expoente)
+		
+		la 	$a0, ($t2)	# Coloca o registrador $t2 para ser impresso
+		li 	$v0, 34		# Chamada de sistema para print_hex
+		syscall			# Imprime o hehadecimal
+		
+		li 	$v0, 4		# Chamada de sistema para print_string
+		la  	$a0, qline	# Endereço da string "\n" para imprimir	
+		syscall			# Imprime a string
+		jr	$ra		# Volta pra linha debaixo de onde foi chamada
