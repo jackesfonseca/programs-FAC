@@ -1,0 +1,149 @@
+.data
+	qline:		.asciiz	"\n"
+	entradaInv:	.asciiz "Entradas invalidas.\n"
+	naoPrimo:	.asciiz "O modulo nao eh primo.\n"
+	comeco:		.asciiz "A exponencial modular "
+	meio1:		.asciiz " elevado a "
+	meio2:		.asciiz " (mod "
+	meio3:		.asciiz ") eh "
+	fim:		.asciiz ".\n"
+.text
+main:
+	li	$t0, 0
+	jal ler_int
+	move	$t1, $v0	# Coloca o valor que foi lido de a em $t1
+	
+	jal ler_int
+	move	$t2, $v0	# Coloca o valor que foi lido de b em $t2
+	
+	jal ler_int
+	move	$t3, $v0	# Coloca o valor que foi lido de c em $t3
+	
+	beq 	$t0, 1, printa_entrada_inv
+	
+	jal	teste_primalidade
+	beqz  	$t5, printa_naoPrimo
+	
+	jal	expoenciacao
+	
+	jal	printa_resultado
+	
+	
+exit:	
+	li	$v0, 10		# Chamada de sistema para saida
+	syscall 		# Finaliza execução.
+
+ler_int:
+	li	$v0, 5		# Chamada de sistema para read_int
+	syscall
+	beq 	$t0, 1, entrada_invalida
+	sle   	$t0, $v0, $zero
+	beq 	$t0, 1, entrada_invalida
+	sge 	$t0, $v0, 65536	
+	entrada_invalida:
+	jr	$ra
+	
+printa_entrada_inv:	
+	li 	$v0, 4		# Chamada de sistema para print_string
+	la  	$a0, entradaInv	# Endereço da string para imprimir	
+	syscall			# Imprime a string
+	j	exit
+
+printa_naoPrimo:	
+	li 	$v0, 4		# Chamada de sistema para print_string
+	la  	$a0, naoPrimo	# Endereço da string para imprimir	
+	syscall			# Imprime a string
+	j	exit	
+	
+printa_resultado:
+	li 	$v0, 4		# Imprime "A exponencial modular "
+	la  	$a0, comeco		
+	syscall			
+
+	la 	$a0, ($t1)	# Coloca o registrador $t1(a) para ser impresso
+	li 	$v0, 1		
+	syscall			
+	
+	li 	$v0, 4		# Imprime " elevado a "
+	la  	$a0, meio1		
+	syscall
+	
+	la 	$a0, ($t2)	# Coloca o registrador $t2(b) para ser impresso
+	li 	$v0, 1		
+	syscall			
+	
+	li 	$v0, 4		# Imprime " (mod "
+	la  	$a0, meio2	
+	syscall
+	
+	la 	$a0, ($t3)	# Coloca o registrador $t3(c) para ser impresso
+	li 	$v0, 1		
+	syscall			
+	
+	li 	$v0, 4		# Imprime ") eh "
+	la  	$a0, meio3		
+	syscall
+	
+	la 	$a0, ($t6)	# Coloca o registrador $t6 para ser impresso
+	li 	$v0, 1		
+	syscall			
+	
+	li 	$v0, 4		# Imprime ".\n"
+	la  	$a0, fim		
+	syscall
+	
+	j	exit
+	
+teste_primalidade:
+	li	$t5, 1
+	beq 	$t3, 1, n_eh_primo# Se c=1, nao é primo
+	beq	$t3, 2, fim_teste # Se c=2, é primo e nao precisa entrar no loop
+		# Teste se c é um numero par > 2, se for, c nao é primo
+	li	$t4, 2
+	div 	$t3, $t4
+	mfhi	$t5
+	beq	$t5, $zero, n_eh_primo
+		# Set variaveis para o loop
+	li	$t4, 3
+	li	$t5, 1	# c eh primo ate que se prove o contrario
+	
+			# Contador só precisa ir ate sqrt(c,2), ent $t6 é uma condicao de parada
+	mtc1  	$t3, $f13
+	cvt.s.w $f13, $f13
+	sqrt.s 	$f1, $f13	# Calcula a raiz quadrada e coloca em $f0
+	cvt.w.s $f1, $f1
+	mfc1 	$t6, $f1
+	
+	loop_prim:
+	beq 	$t5, $zero, fim_teste
+	blt    	$t6, $t4, fim_teste # A condicao de parada do $t6
+	div 	$t3, $t4	# Divide c pelo contador
+	mfhi	$t7		# Coloca o resto da divisao acima em $t7
+	beq	$t7, $zero, n_eh_primo # Se o resto=0, c nao eh primo
+	addi	$t4, $t4, 2	# Como numeros pares já foram testados, o contador só passa pelos impares, somando 2 a cada loop
+	j	loop_prim
+	n_eh_primo: la 	$t5, ($zero)
+	fim_teste: jr	$ra			
+
+expoenciacao:
+	li 	$t6, 1		
+	la 	$t4, ($t1) 	# Coloca a em $t4
+	la 	$t8, ($t2) 	# Contador $t8 comeca com valor do expoente		
+	loop_exp:
+	beqz  	$t8, fim_exp	# Se o contador chegou em 0 acabou o loop
+	rem  	$t9, $t8, 2 	# Guarda o resto da divisão em $t9
+	beqz   	$t9, par 	# Se o resto da divisão acima for zero $t9 é par
+	multu	$t4, $t6	# Exponenciação
+	mflo	$t6		# Guarda resultado da multiplicaçao acima em $t6
+	remu 	$t6, $t6, $t3	# Pega o resto denovo dps de multiplicar e bota em $t6
+	addi 	$t8, $t8, -1 
+	j loop_exp
+	par:
+	multu	$t4, $t4	# Exponenciação
+	mflo	$t4	
+	remu  	$t4, $t4, $t3	# Resto da divisão em $t4
+	div 	$t8, $t8, 2
+	j loop_exp
+	
+	fim_exp: jr $ra
+	

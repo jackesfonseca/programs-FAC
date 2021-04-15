@@ -1,0 +1,8 @@
+Eu fiz uns 3 ou 4 códigos muito diferentes mas ou eu ficava no TLE ou no Wrong Answer.
+Pra sair do TLE tive que brincar com o primo assim: https://sillycodes.com/prime-number-program-in-c-using-sqrt/
+Já a Exponenciação Modular só funcionou comigo do jeito que o guerreiro Ítalo mandou:
+http://www-users.math.umn.edu/~garrett/crypto/Code/FastPow_Python.html
+MAS aí por exemplo onde faz "(X * X) % m" e "(X * Y) % m", você precisa cuidar do overflow:
+https://www.geeksforgeeks.org/how-to-avoid-overflow-in-modular-multiplication/
+
+Ainda mais pra quem nem começou eu recomendo ir direto aí e tentar. Porque eu tava estagnado e tentando fazer os meus códigos funcionar mas no fim só consegui usando esses do link.
